@@ -1,0 +1,24 @@
+# Serving certificate, issued from the kcp-operator's server CA so the
+# front-proxy can verify it with its existing CA mount.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mcp-vw-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mcp-vw.labels" . | nindent 4 }}
+spec:
+  secretName: mcp-vw-server
+  issuerRef:
+    name: {{ .Values.kcp.serverCAIssuer }}
+    kind: Issuer
+  dnsNames:
+    - mcp-vw
+    - mcp-vw.{{ .Release.Namespace }}
+    - mcp-vw.{{ .Release.Namespace }}.svc
+    - mcp-vw.{{ .Release.Namespace }}.svc.cluster.local
+  duration: 8766h
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment

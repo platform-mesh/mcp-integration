@@ -1,0 +1,36 @@
+image:
+  registry: ghcr.io
+  # Canonical image published by the kcp-dev contrib repo.
+  repository: kcp-dev/contrib-mcp-vw
+  # Defaults to Chart.appVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+kcp:
+  # kcp-operator RootShard name the Kubeconfig CR targets.
+  rootShard: root
+  # Secret holding the front-proxy requestheader client CA.
+  requestHeaderCASecret: root-requestheader-client-ca
+  # Secret holding kcp's server CA (verifies access-vw's serving cert
+  # on the direct SCAR leg).
+  serverCASecret: root-server-ca
+  # cert-manager Issuer for the serving certificate.
+  serverCAIssuer: root-server-ca
+
+server:
+  securePort: 9444
+
+# SCAR leg: direct to the access-vw Service, impersonating the caller.
+access:
+  url: https://access-vw.kcp-system.svc.cluster.local:9443/services/access
+  cacheTTL: 30s
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

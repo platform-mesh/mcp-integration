@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-vw
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mcp-vw.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: mcp-vw
+  template:
+    metadata:
+      labels:
+        {{- include "mcp-vw.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: mcp-vw
+          image: {{ include "mcp-vw.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - serve
+            # TLS serving — the front-proxy verifies this cert against
+            # the kcp server CA.
+            - --secure-port={{ .Values.server.securePort }}
+            - --tls-cert-file=/etc/mcp-vw/tls/tls.crt
+            - --tls-private-key-file=/etc/mcp-vw/tls/tls.key
+            # Trust X-Remote-* identity headers only from clients presenting
+            # a cert signed by the requestheader client CA (the front-proxy).
+            - --requestheader-client-ca-file=/etc/kcp/requestheader-ca/tls.crt
+            - --requestheader-allowed-names=kcp-front-proxy
+            - --requestheader-username-headers=X-Remote-User
+            - --requestheader-group-headers=X-Remote-Group
+            - --requestheader-extra-headers-prefix=X-Remote-Extra-
+            # SCAR leg: direct to the access-vw Service, impersonating the
+            # caller. mcp-vw authenticates with its client cert (kubeconfig);
+            # access-vw verifies it against kcp's client CA.
+            - --access-url={{ .Values.access.url }}
+            - --access-ca-file=/etc/kcp/server-ca/tls.crt
+            - --access-cache-ttl={{ .Values.access.cacheTTL }}
+            # Own identity: base credential for impersonated per-workspace
+            # calls and the SCAR leg above.
+            - --kubeconfig=/etc/kcp/kubeconfig
+          ports:
+            - containerPort: {{ .Values.server.securePort }}
+              name: https
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.server.securePort }}
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: kcp-kubeconfig
+              mountPath: /etc/kcp
+              readOnly: true
+            - name: serving-cert
+              mountPath: /etc/mcp-vw/tls
+              readOnly: true
+            - name: requestheader-ca
+              mountPath: /etc/kcp/requestheader-ca
+              readOnly: true
+            - name: server-ca
+              mountPath: /etc/kcp/server-ca
+              readOnly: true
+      volumes:
+        - name: kcp-kubeconfig
+          secret:
+            secretName: mcp-vw-kubeconfig
+        - name: serving-cert
+          secret:
+            secretName: mcp-vw-server
+        - name: requestheader-ca
+          secret:
+            secretName: {{ .Values.kcp.requestHeaderCASecret }}
+            items:
+              - key: tls.crt
+                path: tls.crt
+        # kcp's server CA — verifies access-vw's serving certificate on the
+        # direct SCAR leg.
+        - name: server-ca
+          secret:
+            secretName: {{ .Values.kcp.serverCASecret }}
+            items:
+              - key: tls.crt
+                path: tls.crt

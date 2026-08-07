@@ -1,0 +1,11 @@
+apiVersion: v2
+name: access-vw
+description: >-
+  kcp Access Virtual Workspace — serves SelfClusterAccessReview
+  (permission-aware workspace discovery) behind kcp's front-proxy.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/kcp-dev/contrib-access-virtual-workspace
+sources:
+  - https://github.com/kcp-dev/contrib-access-virtual-workspace

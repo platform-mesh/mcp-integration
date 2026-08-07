@@ -1,0 +1,84 @@
+# OCM component constructor for one virtual-workspace service, following
+# the platform-mesh three-tier pattern:
+#
+#   github.com/platform-mesh/<name>              service component
+#     ├─ chart → github.com/platform-mesh/helm-charts/<name>
+#     └─ image → github.com/platform-mesh/images/<name>
+#
+# Rendered with the Go templater:
+#   ocm add components -c --templater=go --file <ctf> \
+#     .ocm/component-constructor.yaml -- \
+#     NAME=access-vw VERSION=0.1.0 APP_VERSION=0.1.0 \
+#     COMMIT=<sha> CHART_REPO=https://github.com/platform-mesh/mcp-integration \
+#     CHART_OCI_PATH=ghcr.io/platform-mesh/mcp-integration/charts/access-vw \
+#     IMAGE_NAME=ghcr.io/platform-mesh/mcp-integration/access-vw \
+#     IMAGE_REPO=https://github.com/kcp-dev/contrib-access-virtual-workspace \
+#     IMAGE_REPO_SHA=<sha> LOCAL_CHART_PATH=charts/access-vw
+components:
+  # ── Service component ──────────────────────────────────────────────────
+  - name: github.com/platform-mesh/{{ .NAME }}
+    version: "{{ .VERSION }}"
+    provider:
+      name: The Platform Mesh Team
+    componentReferences:
+      - name: chart
+        componentName: github.com/platform-mesh/helm-charts/{{ .NAME }}
+        version: "{{ .VERSION }}"
+      - name: image
+        componentName: github.com/platform-mesh/images/{{ .NAME }}
+        version: "{{ .APP_VERSION }}"
+    sources:
+      - name: chart
+        type: git
+        version: "{{ .VERSION }}"
+        access:
+          commit: "{{ .COMMIT }}"
+          repoUrl: "{{ .CHART_REPO }}"
+          type: gitHub
+
+  # ── Chart sub-component ────────────────────────────────────────────────
+  - name: github.com/platform-mesh/helm-charts/{{ .NAME }}
+    version: "{{ .VERSION }}"
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: chart
+        type: helmChart
+        relation: external
+        version: "{{ .VERSION }}"
+        access:
+          type: ociArtifact
+          imageReference: "{{ .CHART_OCI_PATH }}:{{ .VERSION }}"
+    sources:
+      - name: chart
+        type: git
+        version: "{{ .VERSION }}"
+        access:
+          commit: "{{ .COMMIT }}"
+          repoUrl: "{{ .CHART_REPO }}"
+          type: gitHub
+
+  # ── Image sub-component ────────────────────────────────────────────────
+  # References the canonical kcp-dev image; relation: local makes
+  # `ocm transfer` copy the image content into the target OCM registry
+  # (platform-mesh's convention for externally-built software).
+  - name: github.com/platform-mesh/images/{{ .NAME }}
+    version: "{{ .APP_VERSION }}"
+    provider:
+      name: The Platform Mesh Team
+    resources:
+      - name: image
+        type: ociImage
+        relation: local
+        version: "{{ .APP_VERSION }}"
+        access:
+          type: ociArtifact
+          imageReference: "{{ .IMAGE_NAME }}:{{ .APP_VERSION }}"
+    sources:
+      - name: source
+        type: git
+        version: "{{ .APP_VERSION }}"
+        access:
+          commit: "{{ .IMAGE_REPO_SHA }}"
+          repoUrl: "{{ .IMAGE_REPO }}"
+          type: gitHub

@@ -1,0 +1,50 @@
+image:
+  registry: ghcr.io
+  # Canonical image published by the kcp-dev contrib repo.
+  repository: kcp-dev/contrib-access-vw
+  # Defaults to Chart.appVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+# Namespace the kcp control plane (kcp-operator resources) runs in.
+# All resources are rendered into the release namespace; these names
+# refer to kcp-operator-managed objects the chart depends on.
+kcp:
+  # kcp-operator RootShard name the Kubeconfig CR targets.
+  rootShard: root
+  # Secret holding the front-proxy requestheader client CA.
+  requestHeaderCASecret: root-requestheader-client-ca
+  # Secret holding kcp's client CA (verifies client certs minted by
+  # kcp-operator Kubeconfig CRs — e.g. mcp-vw's identity).
+  clientCASecret: root-client-ca
+  # cert-manager Issuer for the serving certificate.
+  serverCAIssuer: root-server-ca
+
+# Bootstrap (init container): workspace tree for the access API export.
+workspacePrefix: root:access
+controllersWorkspace: controllers
+
+server:
+  securePort: 9443
+  # Name of the APIExportEndpointSlice for the access VW's APIExport.
+  apiExportEndpointSlice: access.contrib.kcp.io
+  # Base URL for per-cluster endpoints returned in SCAR responses
+  # (external front-proxy URL, must end with /clusters/).
+  endpointBase: https://root.kcp.example:6443/clusters/
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+initResources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
