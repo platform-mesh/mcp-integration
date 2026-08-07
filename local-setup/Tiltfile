@@ -1,0 +1,107 @@
+# Tiltfile — dev loop for the kcp MCP stack.
+#
+# Builds contrib-access-virtual-workspace and contrib-mcp-virtual-workspace
+# and deploys them into the Kind cluster created by `make setup-infra`.
+#
+# Sources: sibling checkouts are used when present (live dev loop);
+# otherwise the upstream kcp-dev repos are cloned automatically.
+# Override with: tilt up -- --access-repo=<path-or-git-url> --mcp-repo=<...>
+
+load('ext://git_resource', 'git_checkout')
+
+allow_k8s_contexts('kind-mcp-integration')
+config.define_string('access-repo')
+config.define_string('mcp-repo')
+cfg = config.parse()
+
+def resolve_repo(flag_value, sibling_path, upstream_url, checkout_dir):
+    """Prefer an explicit flag, then a local sibling checkout, then clone upstream."""
+    if flag_value:
+        if flag_value.startswith('http') or flag_value.startswith('git@'):
+            return git_checkout(flag_value, checkout_dir=checkout_dir)
+        return flag_value
+    if os.path.exists(sibling_path):
+        return sibling_path
+    return git_checkout(upstream_url, checkout_dir=checkout_dir)
+
+access_repo = resolve_repo(
+    cfg.get('access-repo', ''),
+    '../../contrib-access-virtual-workspace',
+    'https://github.com/kcp-dev/contrib-access-virtual-workspace.git',
+    '.tilt-sources/contrib-access-virtual-workspace',
+)
+mcp_repo = resolve_repo(
+    cfg.get('mcp-repo', ''),
+    '../../contrib-mcp-virtual-workspace',
+    'https://github.com/kcp-dev/contrib-mcp-virtual-workspace.git',
+    '.tilt-sources/contrib-mcp-virtual-workspace',
+)
+
+# ── Images ───────────────────────────────────────────────────────────────────
+
+docker_build(
+    'ghcr.io/kcp-dev/contrib-access-vw',
+    access_repo,
+    dockerfile=access_repo + '/Dockerfile',
+    ignore=['**/*_test.go', '.git'],
+)
+
+docker_build(
+    'ghcr.io/kcp-dev/contrib-mcp-vw',
+    mcp_repo,
+    dockerfile=mcp_repo + '/Dockerfile',
+    ignore=['**/*_test.go', '.git'],
+)
+
+# ── Manifests ────────────────────────────────────────────────────────────────
+
+k8s_yaml(kustomize('manifests/access-vw'))
+k8s_yaml(kustomize('manifests/mcp-vw'))
+
+k8s_resource(
+    'access-vw',
+    labels=['virtual-workspaces'],
+    objects=[
+        'access-vw-server:certificate',
+        'access-vw-kubeconfig:kubeconfig',
+    ],
+)
+
+k8s_resource(
+    'mcp-vw',
+    labels=['virtual-workspaces'],
+    resource_deps=['access-vw'],
+    objects=[
+        'mcp-vw-server:certificate',
+        'mcp-vw-kubeconfig:kubeconfig',
+    ],
+)
+
+# ── Smoke tests (manual trigger from the Tilt UI) ────────────────────────────
+
+local_resource(
+    'seed',
+    cmd='make seed',
+    resource_deps=['access-vw'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    auto_init=False,
+    labels=['verify'],
+)
+
+local_resource(
+    'smoke-scar-alice',
+    cmd='make scar USER=alice',
+    resource_deps=['access-vw'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    auto_init=False,
+    labels=['verify'],
+)
+
+local_resource(
+    'smoke-mcp-alice',
+    cmd='make mcp-smoke USER=alice',
+    resource_deps=['mcp-vw'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    auto_init=False,
+    labels=['verify'],
+)
