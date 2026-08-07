@@ -1,0 +1,82 @@
+# Keycloak Helm values (codecentric/keycloakx chart).
+# Minimal config for local dev — welcome realm configured via scripts/configure-keycloak.sh.
+# Uses official quay.io/keycloak/keycloak image with embedded dev-mode H2 database.
+# TLS enabled via cert-manager certificate (required for kcp OIDC).
+command:
+  - "/opt/keycloak/bin/kc.sh"
+  - "start-dev"
+  - "--https-certificate-file=/etc/keycloak-tls/tls.crt"
+  - "--https-certificate-key-file=/etc/keycloak-tls/tls.key"
+  - "--https-port=8443"
+
+# Health probes — management interface auto-switches to HTTPS when TLS is enabled
+startupProbe: |
+  httpGet:
+    path: /health
+    port: http-internal
+    scheme: HTTPS
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  failureThreshold: 60
+
+livenessProbe: |
+  httpGet:
+    path: /health/live
+    port: http-internal
+    scheme: HTTPS
+  initialDelaySeconds: 0
+  periodSeconds: 10
+
+readinessProbe: |
+  httpGet:
+    path: /health/ready
+    port: http-internal
+    scheme: HTTPS
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+extraEnv: |
+  - name: KC_FEATURES
+    value: "token-exchange"
+  - name: KC_PROXY_HEADERS
+    value: xforwarded
+  - name: KC_HOSTNAME
+    value: "https://keycloak.kcp.example:8443"
+  - name: KC_HOSTNAME_STRICT
+    value: "false"
+  - name: KEYCLOAK_ADMIN
+    value: admin
+  - name: KEYCLOAK_ADMIN_PASSWORD
+    value: admin
+
+http:
+  relativePath: "/"
+
+database:
+  vendor:
+
+replicas: 1
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+service:
+  type: NodePort
+  httpPort: 80
+  httpsPort: 8443
+  httpsNodePort: 30443
+
+extraVolumes: |
+  - name: keycloak-tls
+    secret:
+      secretName: keycloak-tls
+
+extraVolumeMounts: |
+  - name: keycloak-tls
+    mountPath: /etc/keycloak-tls
+    readOnly: true

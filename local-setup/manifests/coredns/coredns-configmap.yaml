@@ -1,0 +1,44 @@
+# Static Corefile for the kind cluster: the default kind/CoreDNS config
+# plus two rewrites so pods (VWs, kcp, front-proxy, smoke tests) resolve
+# the demo hostnames to the in-cluster Services. This replaces the whole
+# Corefile — if a future kind version changes its CoreDNS defaults, sync
+# this file (kubectl get cm coredns -n kube-system -o yaml on a fresh
+# cluster) and re-add the rewrite blocks.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        rewrite stop {
+            name exact root.kcp.example frontproxy-front-proxy.kcp-system.svc.cluster.local
+            answer auto
+        }
+        rewrite stop {
+            name exact keycloak.kcp.example keycloak-keycloakx-http.keycloak.svc.cluster.local
+            answer auto
+        }
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf {
+           max_concurrent 1000
+        }
+        cache 30 {
+           disable success cluster.local
+           disable denial cluster.local
+        }
+        loop
+        reload
+        loadbalance
+    }
