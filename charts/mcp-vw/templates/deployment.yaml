@@ -36,7 +36,7 @@ spec:
             # SCAR leg: direct to the access-vw Service, impersonating the
             # caller. mcp-vw authenticates with its client cert (kubeconfig);
             # access-vw verifies it against kcp's client CA.
-            - --access-url={{ .Values.access.url }}
+            - --access-url={{ include "mcp-vw.accessURL" . }}
             - --access-ca-file=/etc/kcp/server-ca/tls.crt
             - --access-cache-ttl={{ .Values.access.cacheTTL }}
             # Own identity: base credential for impersonated per-workspace

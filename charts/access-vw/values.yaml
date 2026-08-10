@@ -1,7 +1,7 @@
 image:
   registry: ghcr.io
   # Canonical image published by the kcp-dev contrib repo.
-  repository: kcp-dev/contrib-access-vw
+  repository: kcp-dev/contrib-access-virtual-workspace
   # Defaults to Chart.appVersion when empty.
   tag: ""
   pullPolicy: IfNotPresent
@@ -19,8 +19,13 @@ kcp:
   # Secret holding kcp's client CA (verifies client certs minted by
   # kcp-operator Kubeconfig CRs — e.g. mcp-vw's identity).
   clientCASecret: root-client-ca
+  # Secret holding kcp's server CA (cert + key, kcp-operator-created).
+  serverCASecret: root-server-ca
   # cert-manager Issuer for the serving certificate.
   serverCAIssuer: root-server-ca
+  # Create the Issuer above as a CA issuer wrapping serverCASecret.
+  # Set false if the environment already provides it.
+  createServerCAIssuer: true
 
 # Bootstrap (init container): workspace tree for the access API export.
 workspacePrefix: root:access

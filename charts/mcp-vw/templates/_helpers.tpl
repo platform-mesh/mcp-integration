@@ -12,3 +12,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- end }}
+
+{{/*
+SCAR endpoint: explicit value or the access-vw Service in this namespace.
+*/}}
+{{- define "mcp-vw.accessURL" -}}
+{{ .Values.access.url | default (printf "https://access-vw.%s.svc.cluster.local:9443/services/access" .Release.Namespace) }}
+{{- end }}
