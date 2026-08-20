@@ -1,0 +1,26 @@
+# Values for installing the mcp-vw chart into a platform-mesh kind cluster,
+# alongside access-vw:
+#
+#   helm upgrade --install mcp-vw charts/mcp-vw \
+#     -n platform-mesh-system -f examples/platform-mesh/mcp-vw.values.yaml
+#
+# Each workspace the server should reach needs the impersonator RBAC from
+# contrib-mcp-virtual-workspace deploy/kcp/rbac.yaml applied in it.
+
+# For a locally built image instead of the published one:
+#   docker build -t mcp-vw:local . && kind load docker-image mcp-vw:local --name platform-mesh
+# image:
+#   registry: docker.io/library
+#   repository: mcp-vw
+#   tag: local
+#   pullPolicy: Never
+
+kcp:
+  frontProxy: frontproxy
+
+# See access-vw.values.yaml for how to find the traefik ClusterIP.
+hostAliases:
+  - ip: 10.96.188.4
+    hostnames:
+      - root.kcp.localhost
+      - kcp.api.portal.localhost

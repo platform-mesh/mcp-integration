@@ -11,6 +11,10 @@ replicas: 1
 kcp:
   # kcp-operator RootShard name the Kubeconfig CR targets.
   rootShard: root
+  # kcp-operator FrontProxy name; when set, the Kubeconfig CR targets it
+  # instead of the RootShard. Required when workspace paths must resolve
+  # through the front proxy.
+  frontProxy: ""
   # Secret holding the front-proxy requestheader client CA.
   requestHeaderCASecret: root-requestheader-client-ca
   # Secret holding kcp's server CA (verifies access-vw's serving cert
@@ -36,3 +40,11 @@ resources:
   limits:
     cpu: 200m
     memory: 256Mi
+
+# Extra /etc/hosts entries for the pod, e.g. when the kcp kubeconfig
+# hostname only resolves via cluster-external DNS.
+hostAliases: []
+
+# Toolsets the server exposes (--toolsets). Empty means the server default
+# (core, read-only). Valid: core, apis, admin, write.
+toolsets: []

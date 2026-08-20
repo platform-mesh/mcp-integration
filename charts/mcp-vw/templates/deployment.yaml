@@ -15,6 +15,10 @@ spec:
       labels:
         {{- include "mcp-vw.labels" . | nindent 8 }}
     spec:
+      {{- with .Values.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: mcp-vw
           image: {{ include "mcp-vw.image" . }}
@@ -42,6 +46,11 @@ spec:
             # Own identity: base credential for impersonated per-workspace
             # calls and the SCAR leg above.
             - --kubeconfig=/etc/kcp/kubeconfig
+            {{- with .Values.toolsets }}
+            # Server-enforced toolset policy; unlisted toolsets are never
+            # registered.
+            - --toolsets={{ join "," . }}
+            {{- end }}
           ports:
             - containerPort: {{ .Values.server.securePort }}
               name: https

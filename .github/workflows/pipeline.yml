@@ -20,8 +20,8 @@ concurrency:
 # kcp-dev repositories; this pipeline only packages them as one OCM component,
 # versioned from this repository.
 env:
-  ACCESS_VW_IMAGE: ghcr.io/kcp-dev/contrib-access-virtual-workspace:0.0.1
-  MCP_VW_IMAGE: ghcr.io/kcp-dev/contrib-mcp-virtual-workspace:0.0.1
+  ACCESS_VW_IMAGE: ghcr.io/kcp-dev/contrib-access-virtual-workspace:0.0.3
+  MCP_VW_IMAGE: ghcr.io/kcp-dev/contrib-mcp-virtual-workspace:0.0.2
 
 jobs:
   # Reusable workflow inputs cannot read env, so expose the image pins as
