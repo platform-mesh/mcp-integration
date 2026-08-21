@@ -10,13 +10,16 @@
 # For a locally built image instead of the published one:
 #   docker build -t mcp-vw:local . && kind load docker-image mcp-vw:local --name platform-mesh
 # image:
-#   registry: docker.io/library
-#   repository: mcp-vw
+#   repository: docker.io/library/mcp-vw
 #   tag: local
-#   pullPolicy: Never
 
 kcp:
   frontProxy: frontproxy
+
+# The external front-proxy address; the SCAR --access-url derives from it.
+external:
+  hostname: kcp.api.portal.localhost
+  port: 8443
 
 # See access-vw.values.yaml for how to find the traefik ClusterIP.
 hostAliases:

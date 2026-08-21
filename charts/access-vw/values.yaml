@@ -1,63 +1,44 @@
 image:
-  registry: ghcr.io
   # Canonical image published by the kcp-dev contrib repo.
-  repository: kcp-dev/contrib-access-virtual-workspace
+  repository: ghcr.io/kcp-dev/contrib-access-virtual-workspace
   # Defaults to Chart.appVersion when empty.
   tag: ""
-  pullPolicy: IfNotPresent
 
+# The graph is held in memory; keep a single replica.
 replicas: 1
 
-# Namespace the kcp control plane (kcp-operator resources) runs in.
-# All resources are rendered into the release namespace; these names
-# refer to kcp-operator-managed objects the chart depends on.
+# kcp-operator objects the chart depends on, in the release namespace.
 kcp:
-  # kcp-operator RootShard name the Kubeconfig CR targets.
+  # RootShard the VirtualWorkspace connects to.
   rootShard: root
-  # kcp-operator FrontProxy name; when set, the Kubeconfig CR targets it
-  # instead of the RootShard. Required when workspace paths must resolve
-  # through the front proxy.
-  frontProxy: ""
-  # Secret holding the front-proxy requestheader client CA.
-  requestHeaderCASecret: root-requestheader-client-ca
-  # Secret holding kcp's client CA (verifies client certs minted by
-  # kcp-operator Kubeconfig CRs — e.g. mcp-vw's identity).
-  clientCASecret: root-client-ca
-  # Secret holding kcp's server CA (cert + key, kcp-operator-created).
-  serverCASecret: root-server-ca
-  # cert-manager Issuer for the serving certificate.
-  serverCAIssuer: root-server-ca
-  # Create the Issuer above as a CA issuer wrapping serverCASecret.
-  # Set false if the environment already provides it.
-  createServerCAIssuer: true
+  # FrontProxy the Kubeconfig CRs target. Bootstrapping walks workspace
+  # paths, which only resolve through the front-proxy.
+  frontProxy: frontproxy
 
-# Bootstrap (init container): workspace tree for the access API export.
+# The front-proxy address clients use; the operator puts it in the
+# VirtualWorkspace status URL, and the chart derives endpoint-base from it.
+external:
+  hostname: kcp.example.com
+  port: 6443
+
+# Bootstrap (init container): workspace tree for the access APIExport.
 workspacePrefix: root:access
 controllersWorkspace: controllers
 
 server:
-  securePort: 9443
   # Name of the APIExportEndpointSlice for the access VW's APIExport.
   apiExportEndpointSlice: access.contrib.kcp.io
-  # Base URL for per-cluster endpoints returned in SCAR responses
-  # (external front-proxy URL, must end with /clusters/).
-  endpointBase: https://root.kcp.example:6443/clusters/
+  # Base URL for per-cluster endpoints returned in SCAR responses; defaults
+  # to https://<external.hostname>:<external.port>/clusters/.
+  endpointBase: ""
 
 resources:
   requests:
     cpu: 100m
     memory: 128Mi
   limits:
-    cpu: 200m
-    memory: 256Mi
+    memory: 512Mi
 
-initResources:
-  requests:
-    cpu: 50m
-    memory: 64Mi
-  limits:
-    memory: 256Mi
-
-# Extra /etc/hosts entries for the pod, e.g. when the kcp kubeconfig
-# hostname only resolves via cluster-external DNS.
+# Extra /etc/hosts entries for the pod, e.g. when the front-proxy hostname
+# only resolves via cluster-external DNS.
 hostAliases: []

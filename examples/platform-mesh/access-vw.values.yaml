@@ -13,20 +13,17 @@
 # For a locally built image instead of the published one:
 #   docker build -t access-vw:local . && kind load docker-image access-vw:local --name platform-mesh
 # image:
-#   registry: docker.io/library
-#   repository: access-vw
+#   repository: docker.io/library/access-vw
 #   tag: local
-#   pullPolicy: Never
 
 kcp:
-  # Kubeconfig CRs must target the front proxy: workspace paths like
-  # root:access do not resolve against a shard directly.
   frontProxy: frontproxy
-  # The platform-mesh setup already provides the root-server-ca Issuer.
-  createServerCAIssuer: false
 
-server:
-  endpointBase: https://kcp.api.portal.localhost:8443/clusters/
+# The external front-proxy address callers use; SCAR endpoint URLs and the
+# operator-reported VW URL derive from it.
+external:
+  hostname: kcp.api.portal.localhost
+  port: 8443
 
 # kcp hostnames only resolve via the host's DNS, not in-cluster; point them
 # at the traefik Service ClusterIP:

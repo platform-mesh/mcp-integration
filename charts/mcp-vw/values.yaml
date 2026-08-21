@@ -1,50 +1,41 @@
 image:
-  registry: ghcr.io
   # Canonical image published by the kcp-dev contrib repo.
-  repository: kcp-dev/contrib-mcp-virtual-workspace
+  repository: ghcr.io/kcp-dev/contrib-mcp-virtual-workspace
   # Defaults to Chart.appVersion when empty.
   tag: ""
-  pullPolicy: IfNotPresent
 
 replicas: 1
 
+# kcp-operator objects the chart depends on, in the release namespace.
 kcp:
-  # kcp-operator RootShard name the Kubeconfig CR targets.
+  # RootShard the VirtualWorkspace connects to.
   rootShard: root
-  # kcp-operator FrontProxy name; when set, the Kubeconfig CR targets it
-  # instead of the RootShard. Required when workspace paths must resolve
-  # through the front proxy.
-  frontProxy: ""
-  # Secret holding the front-proxy requestheader client CA.
-  requestHeaderCASecret: root-requestheader-client-ca
-  # Secret holding kcp's server CA (verifies access-vw's serving cert
-  # on the direct SCAR leg).
-  serverCASecret: root-server-ca
-  # cert-manager Issuer for the serving certificate. Created by the
-  # access-vw chart (or the environment); not created here.
-  serverCAIssuer: root-server-ca
+  # FrontProxy the Kubeconfig CR targets.
+  frontProxy: frontproxy
 
-server:
-  securePort: 9444
+# The front-proxy address clients use; the operator puts it in the
+# VirtualWorkspace status URL, and the chart derives the access URL from it.
+external:
+  hostname: kcp.example.com
+  port: 6443
 
-# SCAR leg: direct to the access-vw Service, impersonating the caller.
+# SCAR leg: the access virtual workspace, through the front-proxy.
 access:
-  # Defaults to the access-vw Service in the release namespace when empty.
+  # Defaults to https://<external.hostname>:<external.port>/services/access.
   url: ""
   cacheTTL: 30s
+
+# Toolsets the server exposes (--toolsets). Empty means the server default
+# (core, read-only). Valid: core, apis, admin, write.
+toolsets: []
 
 resources:
   requests:
     cpu: 100m
     memory: 128Mi
   limits:
-    cpu: 200m
-    memory: 256Mi
+    memory: 512Mi
 
-# Extra /etc/hosts entries for the pod, e.g. when the kcp kubeconfig
-# hostname only resolves via cluster-external DNS.
+# Extra /etc/hosts entries for the pod, e.g. when the front-proxy hostname
+# only resolves via cluster-external DNS.
 hostAliases: []
-
-# Toolsets the server exposes (--toolsets). Empty means the server default
-# (core, read-only). Valid: core, apis, admin, write.
-toolsets: []

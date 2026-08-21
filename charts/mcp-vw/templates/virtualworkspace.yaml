@@ -1,0 +1,69 @@
+# VirtualWorkspace CR — kcp-operator renders the Deployment and Service
+# (named mcp-vw-virtual-workspace, port 6443), mounts the serving
+# certificate, client and requestheader CAs, and generates the standard
+# apiserver arguments (including --kubeconfig for the secret below). Only
+# server-specific flags appear in extraArgs.
+#
+# Depends on the access-vw chart: each request fetches the caller's
+# workspace list from /services/access.
+apiVersion: operator.kcp.io/v1alpha1
+kind: VirtualWorkspace
+metadata:
+  name: mcp-vw
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mcp-vw.labels" . | nindent 4 }}
+spec:
+  # Singleton connected to the root shard.
+  target:
+    rootShardRef:
+      name: {{ .Values.kcp.rootShard }}
+
+  # Where clients reach this virtual workspace: the front-proxy's external
+  # hostname and port (routed via its additionalPathMappings).
+  external:
+    hostname: {{ .Values.external.hostname }}
+    port: {{ .Values.external.port }}
+
+  image:
+    repository: {{ .Values.image.repository }}
+    tag: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+
+  command:
+    - /mcp-virtual-workspace
+    - serve
+
+  replicas: {{ .Values.replicas }}
+
+  # The identity the server impersonates callers from, minted by the
+  # Kubeconfig CR.
+  kubeconfigSecretRef:
+    name: mcp-vw-server-kubeconfig
+
+  extraArgs:
+    # The access virtual workspace, through the front-proxy. The server
+    # authenticates with its client certificate; the front-proxy turns it
+    # into X-Remote-* headers for access-vw.
+    - --access-url={{ include "mcp-vw.accessURL" . }}
+    # The front-proxy's serving certificate chains up to the root CA the
+    # operator mounts into every virtual workspace pod.
+    - --access-ca-file=/etc/kcp/tls/ca/root/tls.crt
+    - --access-cache-ttl={{ .Values.access.cacheTTL }}
+    {{- with .Values.toolsets }}
+    # Server-enforced toolset policy; unlisted toolsets are never registered.
+    - --toolsets={{ join "," . }}
+    {{- end }}
+
+  resources:
+    {{- toYaml .Values.resources | nindent 4 }}
+
+  {{- with .Values.hostAliases }}
+  deploymentTemplate:
+    spec:
+      template:
+        spec:
+          # --access-url and the minted kubeconfig address the front-proxy by
+          # its external hostname, so it has to resolve from inside the pod.
+          hostAliases:
+            {{- toYaml . | nindent 12 }}
+  {{- end }}

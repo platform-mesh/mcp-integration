@@ -1,10 +1,3 @@
-{{/*
-Image reference: registry/repository:tag (tag defaults to appVersion).
-*/}}
-{{- define "mcp-vw.image" -}}
-{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
-{{- end }}
-
 {{- define "mcp-vw.labels" -}}
 app: mcp-vw
 app.kubernetes.io/name: mcp-vw
@@ -14,8 +7,9 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- end }}
 
 {{/*
-SCAR endpoint: explicit value or the access-vw Service in this namespace.
+SCAR endpoint: explicit value or /services/access at the external
+front-proxy address.
 */}}
 {{- define "mcp-vw.accessURL" -}}
-{{ .Values.access.url | default (printf "https://access-vw.%s.svc.cluster.local:9443/services/access" .Release.Namespace) }}
+{{ .Values.access.url | default (printf "https://%s:%v/services/access" .Values.external.hostname .Values.external.port) }}
 {{- end }}
