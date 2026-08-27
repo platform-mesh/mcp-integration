@@ -6,9 +6,8 @@
 #
 # The init container blocks until the APIExportEndpointSlice has endpoint
 # URLs, which kcp only populates once at least one workspace binds the
-# APIExport; apply the consumer APIBinding from
-# contrib-access-virtual-workspace config/examples/apibinding-consumer.yaml
-# in a workspace (e.g. root) first.
+# APIExport; apply examples/platform-mesh/kcp/apibinding-consumer.yaml in a
+# workspace first. hack/setup-platform-mesh.sh runs the whole flow.
 
 # For a locally built image instead of the published one:
 #   docker build -t access-vw:local . && kind load docker-image access-vw:local --name platform-mesh

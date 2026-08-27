@@ -25,6 +25,28 @@ access:
   url: ""
   cacheTTL: 30s
 
+# Native OIDC bearer-token validation, for clients that reach the server
+# directly (e.g. via a dedicated hostname) instead of through the
+# front-proxy. Leave issuerURL empty to rely on front-proxy headers only.
+oidc:
+  issuerURL: ""
+  clientID: ""
+  usernameClaim: email
+  usernamePrefix: "oidc:"
+  # Secret in the release namespace holding the issuer CA under key ca.crt;
+  # empty means the issuer certificate must chain to a system root.
+  caSecretName: ""
+
+# RFC 9728 protected-resource discovery, so MCP clients can find the
+# authorization server on their own. Setting authorizationServers enables
+# the metadata endpoint and WWW-Authenticate hints.
+oauth:
+  authorizationServers: []
+  # Canonical resource identifier; empty derives it from each request's
+  # Host header.
+  resource: ""
+  scopes: []
+
 # Toolsets the server exposes (--toolsets). Empty means the server default
 # (core, read-only). Valid: core, apis, admin, write.
 toolsets: []

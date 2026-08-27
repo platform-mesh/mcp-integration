@@ -1,0 +1,48 @@
+# Exposes the MCP virtual workspace on its own hostname, bypassing the kcp
+# front-proxy: the front-proxy rejects every unauthenticated request, which
+# would break OAuth discovery (the RFC 9728 well-known endpoint must answer
+# anonymously). Traefik terminates TLS with the wildcard *.portal.localhost
+# certificate (mkcert, trusted on the host) and re-encrypts to the pod,
+# validating its serving certificate against the root-server-ca copied into
+# the mcp-vw-backend-ca ConfigMap by hack/setup-platform-mesh.sh.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp
+  namespace: platform-mesh-system
+spec:
+  hostnames:
+    - mcp.portal.localhost
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: k8sapi-gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: mcp-vw-virtual-workspace
+          namespace: platform-mesh-system
+          port: 6443
+          weight: 1
+---
+apiVersion: gateway.networking.k8s.io/v1alpha3
+kind: BackendTLSPolicy
+metadata:
+  name: mcp-vw-backend-tls
+  namespace: platform-mesh-system
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: mcp-vw-virtual-workspace
+  validation:
+    caCertificateRefs:
+      - group: ""
+        kind: ConfigMap
+        name: mcp-vw-backend-ca
+    hostname: mcp-vw-virtual-workspace.platform-mesh-system.svc.cluster.local

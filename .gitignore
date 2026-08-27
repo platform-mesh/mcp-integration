@@ -1,4 +1,5 @@
 *.kubeconfig
+.secret/
 .ocm/dist/
 .ocm/transport-*.ctf
 .tilt-sources/
