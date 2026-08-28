@@ -1,0 +1,12 @@
+apiVersion: v2
+name: mcp-vw
+description: >-
+  kcp MCP Virtual Workspace — an MCP (Model Context Protocol) server
+  exposing permission-scoped kcp workspaces, served behind kcp's
+  front-proxy. Scopes each session via the Access VW (SCAR).
+type: application
+version: 0.2.0
+appVersion: "0.0.2"
+home: https://github.com/kcp-dev/contrib-mcp-virtual-workspace
+sources:
+  - https://github.com/kcp-dev/contrib-mcp-virtual-workspace

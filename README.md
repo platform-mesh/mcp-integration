@@ -1,28 +1,30 @@
-# SAP Repository Template
-
-Default templates for SAP open source repositories, including LICENSE, .reuse/dep5, Code of Conduct, etc... All repositories on github.com/SAP will be created based on this template.
-
-## To-Do
-
-In case you are the maintainer of a new SAP open source project, these are the steps to do with the template files:
-
-- Check if the default license (Apache 2.0) also applies to your project. A license change should only be required in exceptional cases. If this is the case, please change the [license file](LICENSE).
-- Enter the correct metadata for the REUSE tool. See our [wiki page](https://wiki.one.int.sap/wiki/display/ospodocs/Using+the+Reuse+Tool+of+FSFE+for+Copyright+and+License+Information) for details how to do it. You can find an initial .reuse/dep5 file to build on. Please replace the parts inside the single angle quotation marks < > by the specific information for your repository and be sure to run the REUSE tool to validate that the metadata is correct.
-- Adjust the contribution guidelines (e.g. add coding style guidelines, pull request checklists, different license if needed etc.)
-- Add information about your project to this README (name, description, requirements etc). Especially take care for the <your-project> placeholders - those ones need to be replaced with your project name. See the sections below the horizontal line and [our guidelines on our wiki page](https://wiki.one.int.sap/wiki/pages/viewpage.action?pageId=3564976048#GuidelinesforGitHubHealthfiles(Readme,Contributing,CodeofConduct)-Readme.md) what is required and recommended.
-- Remove all content in this README above and including the horizontal line ;)
-
-***
-
-# Our new open source project
+# mcp-integration
 
 ## About this project
 
-*Insert a short description of your project here...*
+Helm charts and platform-mesh integration for the kcp MCP stack:
 
-## Requirements and Setup
+- **charts/access-vw** — the [access virtual workspace](https://github.com/kcp-dev/contrib-access-virtual-workspace): permission-aware workspace discovery (`SelfClusterAccessReview`) served through the kcp front proxy.
+- **charts/mcp-vw** — the [MCP virtual workspace](https://github.com/kcp-dev/contrib-mcp-virtual-workspace): an MCP server that scopes every session to the workspaces the caller can access and acts on resources via impersonation, so kcp authorizes each request as the caller.
 
-*Insert a short description what is required to get your project running...*
+Both charts render [kcp-operator](https://github.com/kcp-dev/kcp-operator) `VirtualWorkspace` and `Kubeconfig` resources (operator v0.9.0 or newer required).
+
+## Demo on platform-mesh local-setup
+
+Prerequisites: a running [platform-mesh local-setup](https://github.com/platform-mesh/helm-charts) kind cluster with kcp-operator >= v0.9.0, a kcp admin kubeconfig (`local-setup/scripts/createKcpAdminKubeconfig.sh`), `mkcert`, `helm`, `jq`.
+
+```sh
+KCP_ADMIN_KUBECONFIG=/path/to/helm-charts/.secret/kcp/admin.kubeconfig \
+  hack/setup-platform-mesh.sh
+```
+
+The script installs both charts, adds `/services/access` and `/services/mcp` front-proxy path mappings, enables OIDC bearer-token authentication against the local-setup Keycloak, exposes the MCP server with OAuth discovery on `https://mcp.portal.localhost:8443/services/mcp`, binds the APIExport and impersonator RBAC in the demo workspaces, seeds a demo user (`alice@example.com`), and verifies the stack end to end.
+
+Connect an MCP client: point it at `https://mcp.portal.localhost:8443/services/mcp` with no credentials. The client discovers Keycloak via OAuth protected-resource metadata (RFC 9728), registers itself, and opens a browser login — sign in as the demo user (`alice@example.com` / `alice-password`). The TLS certificate is the mkcert root, already trusted on the machine that ran local-setup.
+
+For GitHub Copilot Chat, copy `examples/copilot/mcp.json` to `.vscode/mcp.json` and start the `kcp` MCP server. The tools then operate exclusively on the workspaces the logged-in user can access.
+
+For scripting or debugging without a browser, `hack/get-token.sh` prints a bearer token for the demo user that can be passed as an `Authorization` header directly.
 
 ## Support, Feedback, Contributing
 

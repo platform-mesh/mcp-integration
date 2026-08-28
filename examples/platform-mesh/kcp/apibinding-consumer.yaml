@@ -1,0 +1,42 @@
+# Binds the access.contrib.kcp.io APIExport into a workspace so it shows up
+# in SCAR results. The permission claims let the access virtual workspace
+# read the workspace's RBAC objects, which is what it computes access from.
+#
+# Apply in every workspace that should be discoverable:
+#
+#   kubectl ws use :root:orgs
+#   kubectl apply -f examples/platform-mesh/kcp/apibinding-consumer.yaml
+apiVersion: apis.kcp.io/v1alpha2
+kind: APIBinding
+metadata:
+  name: access.contrib.kcp.io
+spec:
+  reference:
+    export:
+      path: root:access:controllers
+      name: access.contrib.kcp.io
+  permissionClaims:
+    - group: rbac.authorization.k8s.io
+      resource: clusterrolebindings
+      verbs: [get, list, watch]
+      state: Accepted
+      selector:
+        matchAll: true
+    - group: rbac.authorization.k8s.io
+      resource: rolebindings
+      verbs: [get, list, watch]
+      state: Accepted
+      selector:
+        matchAll: true
+    - group: rbac.authorization.k8s.io
+      resource: clusterroles
+      verbs: [get, list, watch]
+      state: Accepted
+      selector:
+        matchAll: true
+    - group: rbac.authorization.k8s.io
+      resource: roles
+      verbs: [get, list, watch]
+      state: Accepted
+      selector:
+        matchAll: true

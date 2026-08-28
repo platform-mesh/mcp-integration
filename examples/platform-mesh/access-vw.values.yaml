@@ -1,0 +1,34 @@
+# Values for installing the access-vw chart into a platform-mesh kind
+# cluster (platform-mesh local setup, namespace platform-mesh-system):
+#
+#   helm upgrade --install access-vw charts/access-vw \
+#     -n platform-mesh-system -f examples/platform-mesh/access-vw.values.yaml
+#
+# The init container blocks until the APIExportEndpointSlice has endpoint
+# URLs, which kcp only populates once at least one workspace binds the
+# APIExport; apply examples/platform-mesh/kcp/apibinding-consumer.yaml in a
+# workspace first. hack/setup-platform-mesh.sh runs the whole flow.
+
+# For a locally built image instead of the published one:
+#   docker build -t access-vw:local . && kind load docker-image access-vw:local --name platform-mesh
+# image:
+#   repository: docker.io/library/access-vw
+#   tag: local
+
+kcp:
+  frontProxy: frontproxy
+
+# The external front-proxy address callers use; SCAR endpoint URLs and the
+# operator-reported VW URL derive from it.
+external:
+  hostname: kcp.api.portal.localhost
+  port: 8443
+
+# kcp hostnames only resolve via the host's DNS, not in-cluster; point them
+# at the traefik Service ClusterIP:
+#   kubectl -n kube-system get svc traefik -o jsonpath='{.spec.clusterIP}'
+hostAliases:
+  - ip: 10.96.188.4
+    hostnames:
+      - root.kcp.localhost
+      - kcp.api.portal.localhost

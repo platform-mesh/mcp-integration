@@ -1,0 +1,48 @@
+# Values for installing the mcp-vw chart into a platform-mesh kind cluster,
+# alongside access-vw:
+#
+#   helm upgrade --install mcp-vw charts/mcp-vw \
+#     -n platform-mesh-system -f examples/platform-mesh/mcp-vw.values.yaml
+#
+# Each workspace the server should reach needs the impersonator RBAC from
+# examples/platform-mesh/kcp/mcp-impersonator-rbac.yaml applied in it.
+# hack/setup-platform-mesh.sh runs the whole flow.
+
+# For a locally built image instead of the published one:
+#   docker build -t mcp-vw:local . && kind load docker-image mcp-vw:local --name platform-mesh
+# image:
+#   repository: docker.io/library/mcp-vw
+#   tag: local
+
+kcp:
+  frontProxy: frontproxy
+
+# The external front-proxy address; the SCAR --access-url derives from it.
+external:
+  hostname: kcp.api.portal.localhost
+  port: 8443
+
+# Direct bearer-token validation against the local-setup Keycloak, for
+# clients reaching the server via its own hostname (mcp.portal.localhost,
+# see examples/platform-mesh/mcp-route.yaml). The CA secret is the mkcert
+# root, created by hack/setup-platform-mesh.sh.
+oidc:
+  issuerURL: https://portal.localhost:8443/keycloak/realms/welcome
+  clientID: kcp-mcp
+  caSecretName: mcp-oidc-issuer-ca
+
+# OAuth discovery: MCP clients hitting mcp.portal.localhost unauthenticated
+# get pointed at Keycloak and register themselves (anonymous DCR, enabled by
+# the setup script).
+oauth:
+  authorizationServers:
+    - https://portal.localhost:8443/keycloak/realms/welcome
+  resource: https://mcp.portal.localhost:8443/services/mcp
+
+# See access-vw.values.yaml for how to find the traefik ClusterIP.
+hostAliases:
+  - ip: 10.96.188.4
+    hostnames:
+      - root.kcp.localhost
+      - kcp.api.portal.localhost
+      - portal.localhost
