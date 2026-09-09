@@ -1,0 +1,158 @@
+# Serving certificate for the access-vw virtual workspace.
+# Issued from the kcp-operator's server CA (an intermediate of root-ca),
+# so the front-proxy can verify it with its existing /etc/kcp/tls/ca mount.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: access-vw-server
+  namespace: kcp-system
+spec:
+  secretName: access-vw-server
+  issuerRef:
+    name: root-server-ca
+    kind: Issuer
+  dnsNames:
+    - access-vw
+    - access-vw.kcp-system
+    - access-vw.kcp-system.svc
+    - access-vw.kcp-system.svc.cluster.local
+  duration: 8766h
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: access-vw
+  namespace: kcp-system
+  labels:
+    app: access-vw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: access-vw
+  template:
+    metadata:
+      labels:
+        app: access-vw
+    spec:
+      initContainers:
+        # Bootstraps kcp: creates root:access:controllers (any missing
+        # workspace along the path), installs the APIExport, schema, bind
+        # RBAC and endpoint slice, and mints the controller ServiceAccount.
+        # Idempotent — safe on every pod start.
+        - name: init
+          image: ghcr.io/kcp-dev/contrib-access-vw:latest
+          command: ["/access-vw-init"]
+          args:
+            - --kubeconfig=/etc/kcp/admin.kubeconfig
+            - --workspace-prefix=root:access
+            - --controllers-workspace=controllers
+          volumeMounts:
+            - name: kcp-kubeconfig
+              mountPath: /etc/kcp
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+      containers:
+        - name: access-vw
+          image: ghcr.io/kcp-dev/contrib-access-vw:latest
+          args:
+            # TLS serving — the front-proxy verifies this cert against root-ca.
+            - --secure-port=9443
+            - --tls-cert-file=/etc/access-vw/tls/tls.crt
+            - --tls-private-key-file=/etc/access-vw/tls/tls.key
+            # Trust X-Remote-* identity headers only from clients presenting
+            # a cert signed by the requestheader client CA (the front-proxy).
+            - --requestheader-client-ca-file=/etc/kcp/requestheader-ca/tls.crt
+            - --requestheader-allowed-names=kcp-front-proxy
+            - --requestheader-username-headers=X-Remote-User
+            - --requestheader-group-headers=X-Remote-Group
+            - --requestheader-extra-headers-prefix=X-Remote-Extra-
+            # Direct callers presenting a client certificate signed by kcp's
+            # client CA — this is how mcp-vw authenticates its SCAR calls
+            # (service-to-service, not via the front-proxy).
+            - --client-ca-file=/etc/kcp/client-ca/tls.crt
+            # kcp connection for the RBAC provider informers — retargeted at
+            # root:access:controllers where the endpoint slice lives.
+            - --kubeconfig=/etc/kcp/admin.kubeconfig
+            - --workspace-path=root:access:controllers
+            - --apiexport-endpointslice=access.contrib.kcp.io
+            # Per-cluster endpoints returned in SCAR responses (front-proxy URL).
+            - --endpoint-base=https://root.kcp.example:6443/clusters/
+          ports:
+            - containerPort: 9443
+              name: https
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 9443
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: kcp-kubeconfig
+              mountPath: /etc/kcp
+              readOnly: true
+            - name: serving-cert
+              mountPath: /etc/access-vw/tls
+              readOnly: true
+            - name: requestheader-ca
+              mountPath: /etc/kcp/requestheader-ca
+              readOnly: true
+            - name: client-ca
+              mountPath: /etc/kcp/client-ca
+              readOnly: true
+      volumes:
+        - name: kcp-kubeconfig
+          secret:
+            secretName: access-vw-kubeconfig
+            items:
+              - key: kubeconfig
+                path: admin.kubeconfig
+        - name: serving-cert
+          secret:
+            secretName: access-vw-server
+        - name: requestheader-ca
+          secret:
+            secretName: root-requestheader-client-ca
+            items:
+              - key: tls.crt
+                path: tls.crt
+        # kcp's client CA — verifies client certs minted by kcp-operator
+        # Kubeconfig CRs (mcp-vw's identity).
+        - name: client-ca
+          secret:
+            secretName: root-client-ca
+            items:
+              - key: tls.crt
+                path: tls.crt
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: access-vw
+  namespace: kcp-system
+  labels:
+    app: access-vw
+spec:
+  selector:
+    app: access-vw
+  ports:
+    - port: 9443
+      targetPort: 9443
+      name: https
