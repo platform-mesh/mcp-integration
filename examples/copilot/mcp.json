@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "kcp": {
+      "type": "http",
+      "url": "https://mcp.portal.localhost:8443/services/mcp"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+# Path mappings to add to the platform-mesh FrontProxy so callers reach both
+# virtual workspaces through kcp's front proxy:
+#
+#   kubectl -n platform-mesh-system patch frontproxy frontproxy --type=json \
+#     --patch-file examples/platform-mesh/frontproxy-pathmappings.yaml
+#
+# kcp-operator rolls the front-proxy deployment automatically. The
+# requestheader client cert and kcp server CA paths match what the operator
+# mounts into the front-proxy pod.
+- op: add
+  path: /spec/additionalPathMappings/-
+  value:
+    path: /services/access
+    backend: https://access-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+    backend_server_ca: /etc/kcp/tls/ca/tls.crt
+    proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+    proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
+- op: add
+  path: /spec/additionalPathMappings/-
+  value:
+    path: /services/mcp
+    backend: https://mcp-vw-virtual-workspace.platform-mesh-system.svc.cluster.local:6443
+    backend_server_ca: /etc/kcp/tls/ca/tls.crt
+    proxy_client_cert: /etc/kcp-front-proxy/requestheader-client/tls.crt
+    proxy_client_key: /etc/kcp-front-proxy/requestheader-client/tls.key
