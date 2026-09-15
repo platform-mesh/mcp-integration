@@ -1,0 +1,62 @@
+# Gateway infrastructure for the Agent Router (formerly Envoy AI Gateway) in
+# front of the MCP virtual workspace. Everything lives in platform-mesh-system
+# because MCPRoute backendRefs only support Services in the same namespace,
+# and the backend (the kcp front-proxy) lives there.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: agent-router
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: agent-router
+  namespace: platform-mesh-system
+spec:
+  gatewayClassName: agent-router
+  listeners:
+    - name: mcp
+      protocol: HTTP
+      port: 8080
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: agent-router
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: agent-router
+  namespace: platform-mesh-system
+spec:
+  # A stable ClusterIP Service instead of the generated LoadBalancer name,
+  # so the Traefik HTTPRoute below can reference it and nothing waits for a
+  # load balancer address that never arrives on kind.
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        name: agent-router
+        type: ClusterIP
+  telemetry:
+    accessLog:
+      settings:
+        - sinks:
+            - type: File
+              file:
+                path: /dev/stdout
+          format:
+            type: JSON
+            json:
+              start_time: "%START_TIME%"
+              method: "%REQ(:METHOD)%"
+              path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+              response_code: "%RESPONSE_CODE%"
+              duration: "%DURATION%"
+              mcp.session.id: "%REQ(MCP-SESSION-ID)%"
+              mcp.method.name: "%DYNAMIC_METADATA(io.envoy.ai_gateway:mcp_method)%"
+              mcp.tool.name: "%DYNAMIC_METADATA(io.envoy.ai_gateway:mcp_tool_name)%"
+              mcp.backend: "%DYNAMIC_METADATA(io.envoy.ai_gateway:mcp_backend)%"
