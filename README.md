@@ -9,13 +9,20 @@ Helm charts and platform-mesh integration for the kcp MCP stack:
 
 Both charts render [kcp-operator](https://github.com/kcp-dev/kcp-operator) `VirtualWorkspace` and `Kubeconfig` resources. Operator v0.9.0 or newer is required.
 
-## Demo on platform-mesh local-setup
+## Two setups
 
-Prerequisites:
+Both setups run on a [platform-mesh local-setup](https://github.com/platform-mesh/helm-charts) kind cluster. Pick one:
 
-- a running [platform-mesh local-setup](https://github.com/platform-mesh/helm-charts) kind cluster with kcp-operator v0.9.0 or newer
+- **Setup 1** exposes the MCP server behind the kcp front-proxy only.
+- **Setup 2** additionally deploys the [Agent Router](https://theagentrouter.ai) in front of the front-proxy.
+
+Prerequisites for both:
+
+- a running platform-mesh local-setup kind cluster with kcp-operator v0.9.0 or newer
 - a kcp admin kubeconfig, created with `local-setup/scripts/createKcpAdminKubeconfig.sh`
 - `mkcert`, `helm` and `jq`
+
+## Setup 1: behind the front-proxy
 
 ```sh
 KCP_ADMIN_KUBECONFIG=/path/to/helm-charts/.secret/kcp/admin.kubeconfig \
@@ -31,7 +38,34 @@ The script:
 - binds the APIExport and impersonator RBAC in the demo workspaces
 - seeds a demo user and verifies the stack end to end
 
-To connect an MCP client, point it at `https://mcp.portal.localhost:8443/services/mcp` with no credentials. The client discovers Keycloak through OAuth protected-resource metadata (RFC 9728), registers itself and opens a browser login. Sign in as the demo user (`alice@example.com` / `alice-password`). The TLS certificate is signed by the mkcert root, which is already trusted on the machine that ran local-setup.
+The MCP endpoint is `https://mcp.portal.localhost:8443/services/mcp`.
+
+## Setup 2: behind the Agent Router
+
+The Agent Router (formerly Envoy AI Gateway) validates the caller's JWT against Keycloak, serves the OAuth protected-resource metadata itself and forwards the bearer token to the front-proxy.
+
+```sh
+KCP_ADMIN_KUBECONFIG=/path/to/helm-charts/.secret/kcp/admin.kubeconfig \
+  hack/setup-agent-router.sh
+```
+
+The script runs the front-proxy setup from Setup 1 first, then installs Envoy Gateway and the Agent Router with helm and applies the manifests from `examples/platform-mesh/agent-router/`:
+
+- a `GatewayClass`, `Gateway` and `EnvoyProxy` listening on plain HTTP port 8080
+- an `MCPRoute` that validates JWTs against the Keycloak welcome realm and routes `/mcp` to the front-proxy `/services/mcp`
+- a `BackendTLSPolicy` so the router verifies the front-proxy certificate with the kcp root CA
+- an `HTTPRoute` on the local-setup Traefik gateway that publishes the router at `https://agent-router.portal.localhost:8443`, like the other platform-mesh hosts
+
+The MCP endpoint is `https://agent-router.portal.localhost:8443/mcp`.
+
+Current limitations:
+
+- The router prefixes every tool name with the backend name, for example `frontproxy-front-proxy__list_kcp_workspaces`. There is no option to disable this yet.
+- The `MCPRoute` backend must live in the same namespace as the route, which is why everything is deployed in `platform-mesh-system`.
+
+## Connecting an MCP client
+
+Point an MCP client at the endpoint of your setup with no credentials. The client discovers Keycloak through OAuth protected-resource metadata (RFC 9728), registers itself and opens a browser login. Sign in as the demo user (`alice@example.com` / `alice-password`). The TLS certificate is signed by the mkcert root, which is already trusted on the machine that ran local-setup.
 
 For GitHub Copilot Chat, copy `examples/copilot/mcp.json` to `.vscode/mcp.json` and start the `kcp` MCP server. The tools then operate only on the workspaces the logged-in user can access.
 
@@ -45,15 +79,14 @@ This repository is an incubation space. The virtual workspaces stay separate dep
 2. **Cross-component glue moves to where each piece is authored.** The `/services/access` and `/services/mcp` path mappings go into the FrontProxy configuration. The MCP OAuth client goes into the declarative Keycloak realm configuration, so users authenticate with their existing platform-mesh accounts. The anonymous dynamic client registration used by the demo here does not migrate.
 3. **[platform-mesh/platform-mesh](https://github.com/platform-mesh/platform-mesh)** gets dev-environment wiring only. The contrib/tilt environment deploys the same charts behind an opt-in toggle. No contrib code is imported into monorepo services.
 
-Once the helm-charts PR lands and the charts are published, `charts/` here gets removed and `hack/setup-platform-mesh.sh` switches to the published charts (`CHART_SOURCE=oci`). This repository then reduces to client examples and the install script.
+Once the helm-charts PR lands and the charts are published, `charts/` here gets removed and `hack/setup-platform-mesh.sh` switches to the published charts (`CHART_SOURCE=oci`). This repository then reduces to client examples and the install scripts.
 
 ## Support, Feedback, Contributing
 
-This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://github.com/platform-mesh/<your-project>/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, as well as additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md).
+This project is open to feature requests/suggestions, bug reports etc. via [GitHub issues](https://github.com/platform-mesh/mcp-integration/issues). Contribution and feedback are encouraged and always welcome. For more information about how to contribute, the project structure, as well as additional contribution information, see our [Contribution Guidelines](CONTRIBUTING.md).
 
 ## Security / Disclosure
-If you find any bug that may be a security problem, please follow our instructions at [in our security policy](https://github.com/platform-mesh/<your-project>/security/policy) on how to report it. Please do not create GitHub issues for security-related doubts or problems.
-
+If you find any bug that may be a security problem, please follow our instructions at [in our security policy](https://github.com/platform-mesh/mcp-integration/security/policy) on how to report it. Please do not create GitHub issues for security-related doubts or problems.
 ## Code of Conduct
 
 Please refer to our [Code of Conduct](https://github.com/platform-mesh/.github/blob/main/CODE_OF_CONDUCT.md) for information on the expected conduct for contributing to Platform Mesh.

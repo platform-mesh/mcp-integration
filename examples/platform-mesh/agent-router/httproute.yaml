@@ -1,0 +1,42 @@
+# Exposes the Agent Router at https://agent-router.portal.localhost:8443
+# through the local-setup Traefik gateway, the same way the other
+# platform-mesh hosts are published. Traefik terminates TLS with the mkcert
+# wildcard certificate and forwards plain HTTP to the router.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: agent-router
+  namespace: platform-mesh-system
+spec:
+  hostnames:
+    - agent-router.portal.localhost
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: k8sapi-gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - kind: Service
+          name: agent-router
+          namespace: envoy-gateway-system
+          port: 8080
+---
+# Envoy Gateway creates the router Service in its own namespace, so the
+# cross-namespace backendRef above needs this grant.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: agent-router
+  namespace: envoy-gateway-system
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: platform-mesh-system
+  to:
+    - group: ""
+      kind: Service
