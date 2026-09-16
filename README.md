@@ -2,10 +2,10 @@
 
 ## About this project
 
-Helm charts and platform-mesh integration for the kcp MCP stack:
+Platform-mesh integration for the kcp MCP stack. The stack is two [platform-mesh/helm-charts](https://github.com/platform-mesh/helm-charts) charts wrapping the [contrib-virtual-workspaces](https://github.com/kcp-dev/contrib-virtual-workspaces) images:
 
-- **charts/access-vw** installs the [access virtual workspace](https://github.com/kcp-dev/contrib-virtual-workspaces). It answers `SelfClusterAccessReview` requests, so a client can list the workspaces its user can access.
-- **charts/mcp-vw** installs the [MCP virtual workspace](https://github.com/kcp-dev/contrib-virtual-workspaces). It is an MCP server that limits every session to the workspaces the caller can access. It acts on resources via impersonation, so kcp authorizes each request as the caller.
+- **kcp-access-vw** installs the access virtual workspace. It answers `SelfClusterAccessReview` requests, so a client can list the workspaces its user can access.
+- **kcp-mcp-vw** installs the MCP virtual workspace. It is an MCP server that limits every session to the workspaces the caller can access. It acts on resources via impersonation, so kcp authorizes each request as the caller.
 
 Both charts render [kcp-operator](https://github.com/kcp-dev/kcp-operator) `VirtualWorkspace` and `Kubeconfig` resources. Operator v0.9.0 or newer is required.
 
@@ -31,7 +31,7 @@ KCP_ADMIN_KUBECONFIG=/path/to/helm-charts/.secret/kcp/admin.kubeconfig \
 
 The script:
 
-- installs both charts
+- installs both charts from the published OCI registry
 - adds the `/services/access` and `/services/mcp` front-proxy path mappings
 - enables OIDC bearer-token authentication against the local-setup Keycloak
 - exposes the MCP server with OAuth discovery on `https://mcp.portal.localhost:8443/services/mcp`
@@ -79,7 +79,7 @@ This repository is an incubation space. The virtual workspaces stay separate dep
 2. **Cross-component glue moves to where each piece is authored.** The `/services/access` and `/services/mcp` path mappings go into the FrontProxy configuration. The MCP OAuth client goes into the declarative Keycloak realm configuration, so users authenticate with their existing platform-mesh accounts. The anonymous dynamic client registration used by the demo here does not migrate.
 3. **[platform-mesh/platform-mesh](https://github.com/platform-mesh/platform-mesh)** gets dev-environment wiring only. The contrib/tilt environment deploys the same charts behind an opt-in toggle. No contrib code is imported into monorepo services.
 
-Once the helm-charts PR lands and the charts are published, `charts/` here gets removed and `hack/setup-platform-mesh.sh` switches to the published charts (`CHART_SOURCE=oci`). This repository then reduces to client examples and the install scripts.
+Step 1 is done: the charts are published from platform-mesh/helm-charts and the setup scripts here install them from the OCI registry. This repository now holds client examples and the install scripts.
 
 ## Support, Feedback, Contributing
 

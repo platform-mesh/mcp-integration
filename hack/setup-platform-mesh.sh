@@ -18,9 +18,8 @@
 # Usage:
 #   KCP_ADMIN_KUBECONFIG=/path/to/admin.kubeconfig hack/setup-platform-mesh.sh
 #
-# By default the charts install from this repo's charts/ directory; set
-# CHART_SOURCE=oci (and optionally CHART_VERSION) to install the published
-# platform-mesh kcp-access-vw / kcp-mcp-vw charts instead.
+# The kcp-access-vw / kcp-mcp-vw charts install from the published
+# platform-mesh OCI registry; override CHART_VERSION to pin another release.
 set -euo pipefail
 
 CONTEXT=${KUBE_CONTEXT:-kind-platform-mesh}
@@ -33,28 +32,13 @@ KEYCLOAK_URL=${KEYCLOAK_URL:-https://portal.localhost:8443/keycloak}
 REALM=${REALM:-welcome}
 CLIENT_ID=${CLIENT_ID:-kcp-mcp}
 EXTERNAL_URL=${EXTERNAL_URL:-https://kcp.api.portal.localhost:8443}
-# CHART_SOURCE=local installs the charts from this repo; CHART_SOURCE=oci
-# installs the published platform-mesh charts at CHART_VERSION.
-CHART_SOURCE=${CHART_SOURCE:-local}
 CHART_VERSION=${CHART_VERSION:-0.1.0}
 OCI_REPO=${OCI_REPO:-oci://ghcr.io/platform-mesh/helm-charts}
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-case "${CHART_SOURCE}" in
-  local)
-    ACCESS_CHART=("${ROOT}/charts/access-vw")
-    MCP_CHART=("${ROOT}/charts/mcp-vw")
-    ;;
-  oci)
-    ACCESS_CHART=("${OCI_REPO}/kcp-access-vw" --version "${CHART_VERSION}")
-    MCP_CHART=("${OCI_REPO}/kcp-mcp-vw" --version "${CHART_VERSION}")
-    ;;
-  *)
-    echo "CHART_SOURCE must be 'local' or 'oci', got '${CHART_SOURCE}'" >&2
-    exit 1
-    ;;
-esac
+ACCESS_CHART=("${OCI_REPO}/kcp-access-vw" --version "${CHART_VERSION}")
+MCP_CHART=("${OCI_REPO}/kcp-mcp-vw" --version "${CHART_VERSION}")
 
 KC="kubectl --context ${CONTEXT} -n ${NS}"
 

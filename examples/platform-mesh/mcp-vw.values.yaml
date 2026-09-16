@@ -1,7 +1,7 @@
-# Values for installing the mcp-vw chart into a platform-mesh kind cluster,
-# alongside access-vw:
+# Values for installing the kcp-mcp-vw chart into a platform-mesh kind
+# cluster, alongside kcp-access-vw:
 #
-#   helm upgrade --install mcp-vw charts/mcp-vw \
+#   helm upgrade --install mcp-vw oci://ghcr.io/platform-mesh/helm-charts/kcp-mcp-vw \
 #     -n platform-mesh-system -f examples/platform-mesh/mcp-vw.values.yaml
 #
 # Each workspace the server should reach needs the impersonator RBAC from
@@ -11,7 +11,8 @@
 # For a locally built image instead of the published one:
 #   make image-mcp && kind load docker-image ghcr.io/kcp-dev/contrib-virtual-workspaces/mcp-vw:latest --name platform-mesh
 # image:
-#   repository: ghcr.io/kcp-dev/contrib-virtual-workspaces/mcp-vw
+#   registry: ghcr.io
+#   repository: kcp-dev/contrib-virtual-workspaces/mcp-vw
 #   tag: latest
 
 kcp:
