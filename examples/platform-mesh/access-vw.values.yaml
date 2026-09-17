@@ -1,7 +1,7 @@
-# Values for installing the access-vw chart into a platform-mesh kind
+# Values for installing the kcp-access-vw chart into a platform-mesh kind
 # cluster (platform-mesh local setup, namespace platform-mesh-system):
 #
-#   helm upgrade --install access-vw charts/access-vw \
+#   helm upgrade --install access-vw oci://ghcr.io/platform-mesh/helm-charts/kcp-access-vw \
 #     -n platform-mesh-system -f examples/platform-mesh/access-vw.values.yaml
 #
 # The init container blocks until the APIExportEndpointSlice has endpoint
@@ -12,7 +12,8 @@
 # For a locally built image instead of the published one:
 #   make image-access && kind load docker-image ghcr.io/kcp-dev/contrib-virtual-workspaces/access-vw:latest --name platform-mesh
 # image:
-#   repository: ghcr.io/kcp-dev/contrib-virtual-workspaces/access-vw
+#   registry: ghcr.io
+#   repository: kcp-dev/contrib-virtual-workspaces/access-vw
 #   tag: latest
 
 kcp:

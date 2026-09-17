@@ -1,0 +1,58 @@
+# Routes MCP traffic through the kcp front-proxy, the same path direct MCP
+# clients use. The router validates the caller's bearer token against
+# Keycloak and forwards it. The front-proxy validates it again and maps it
+# to a kcp identity.
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: MCPRoute
+metadata:
+  name: kcp-mcp
+  namespace: platform-mesh-system
+spec:
+  parentRefs:
+    - name: agent-router
+      kind: Gateway
+      group: gateway.networking.k8s.io
+  securityPolicy:
+    oauth:
+      issuer: https://portal.localhost:8443/keycloak/realms/welcome
+      jwks:
+        remoteJWKS:
+          # JWKS is fetched over in-cluster HTTP because Envoy does not
+          # trust the mkcert CA behind the external Keycloak endpoint.
+          # JWKS is public key material, so HTTP is fine here.
+          uri: http://keycloak-service.platform-mesh-system.svc.cluster.local:8080/keycloak/realms/welcome/protocol/openid-connect/certs
+      protectedResourceMetadata:
+        # The URL MCP clients use to reach the router, published through the
+        # local-setup Traefik gateway (see httproute.yaml).
+        resource: https://agent-router.portal.localhost:8443/mcp
+        scopesSupported:
+          - openid
+          - profile
+          - email
+  backendRefs:
+    - name: frontproxy-front-proxy
+      kind: Service
+      port: 8443
+      path: /services/mcp
+      forwardHeaders:
+        - name: Authorization
+---
+# TLS origination for the Envoy to front-proxy hop, validated against the
+# kcp root CA. The kcp-root-ca ConfigMap is created by the setup script
+# from the kcp-operator root-ca secret.
+apiVersion: gateway.networking.k8s.io/v1alpha3
+kind: BackendTLSPolicy
+metadata:
+  name: kcp-front-proxy-tls
+  namespace: platform-mesh-system
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: frontproxy-front-proxy
+  validation:
+    caCertificateRefs:
+      - group: ""
+        kind: ConfigMap
+        name: kcp-root-ca
+    hostname: frontproxy-front-proxy.platform-mesh-system.svc.cluster.local
